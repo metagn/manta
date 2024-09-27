@@ -1,3 +1,5 @@
+## array data object for internal use
+
 type
   ArrayObj*[T] {.byref.} = object
     length*: int

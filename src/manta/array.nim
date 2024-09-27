@@ -21,6 +21,14 @@ proc `=copy`*[T](dest: var Array[T], src: Array[T]) =
     for i in 0 ..< L:
       `=copy`(dest.impl.data[i], src.impl.data[i])
 
+proc `=dup`*[T](src: Array[T]): Array[T] =
+  result = Array[T](impl: nil)
+  var L: int
+  if not src.impl.isNil and (L = src.impl.length; L != 0):
+    uninitArrObj result.impl, L
+    for i in 0 ..< L:
+      `=copy`(result.impl.data[i], src.impl.data[i])
+
 # `=destroy`, `=wasMoved` handled by `ArrayObj`
 
 proc len*[T](x: Array[T]): int {.inline.} =

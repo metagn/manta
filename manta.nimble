@@ -2,7 +2,7 @@
 
 version       = "0.1.0"
 author        = "metagn"
-description   = "variable-length array types with destructors"
+description   = "runtime array types with destructors"
 license       = "MIT"
 srcDir        = "src"
 

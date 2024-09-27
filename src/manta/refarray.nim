@@ -24,7 +24,7 @@ proc `[]`*[T](x: var RefArray[T], i: int): var T {.inline.} =
   rangeCheck i >= 0 and i < x.len
   x.impl.data[i]
 
-proc `[]=`*[T](x: var RefArray[T], i: int, val: sink T) {.inline.} =
+proc `[]=`*[T](x: RefArray[T], i: int, val: sink T) {.inline.} =
   rangeCheck i >= 0 and i < x.len
   x.impl.data[i] = val
 
@@ -33,7 +33,7 @@ iterator items*[T](x: RefArray[T]): T =
   for i in 0 ..< L:
     yield x.impl.data[i]
 
-iterator mitems*[T](x: var RefArray[T]): var T =
+iterator mitems*[T](x: RefArray[T]): var T =
   let L = x.len
   for i in 0 ..< L:
     yield x.impl.data[i]
@@ -43,7 +43,7 @@ iterator pairs*[T](x: RefArray[T]): (int, T) =
   for i in 0 ..< L:
     yield (i, x.impl.data[i])
 
-iterator mpairs*[T](x: var RefArray[T]): (int, var T) =
+iterator mpairs*[T](x: RefArray[T]): (int, var T) =
   let L = x.len
   for i in 0 ..< L:
     yield (i, x.impl.data[i])

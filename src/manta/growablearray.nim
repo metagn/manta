@@ -60,6 +60,9 @@ proc newGrowableArrayOfCap*[T](cap: int = 4): GrowableArray[T] {.inline.} =
 proc newGrowableArray*[T](length: int): GrowableArray[T] =
   result = GrowableArray[T](length: length, data: newArray[T](length))
 
+proc toGrowableArray*[T](arr: sink Array[T]): GrowableArray[T] =
+  result = GrowableArray[T](length: arr.len, data: arr)
+
 proc toGrowableArray*[T](arr: openarray[T]): GrowableArray[T] =
   result = GrowableArray[T](length: arr.len, data: toArray[T](arr))
 

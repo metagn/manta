@@ -1,4 +1,4 @@
-import ./arrayobj
+import ./[arrayobj, uncheckedindex]
 
 type Array*[T] = object
   ## array with constant runtime length and value semantics
@@ -35,13 +35,25 @@ proc len*[T](x: Array[T]): int {.inline.} =
   if x.impl.isNil: 0
   else: x.impl.length
 
+proc `[]`*[T](x: Array[T], i: UncheckedIndex): lent T {.inline.} =
+  x.impl.data[int i]
+
+proc `[]`*[T](x: var Array[T], i: UncheckedIndex): var T {.inline.} =
+  x.impl.data[int i]
+
+proc `[]=`*[T](x: var Array[T], i: UncheckedIndex, val: sink T) {.inline.} =
+  x.impl.data[int i] = val
+
 proc `[]`*[T](x: Array[T], i: int): lent T {.inline.} =
+  rangeCheck i >= 0 and i < x.len
   x.impl.data[i]
 
 proc `[]`*[T](x: var Array[T], i: int): var T {.inline.} =
+  rangeCheck i >= 0 and i < x.len
   x.impl.data[i]
 
 proc `[]=`*[T](x: var Array[T], i: int, val: sink T) {.inline.} =
+  rangeCheck i >= 0 and i < x.len
   x.impl.data[i] = val
 
 iterator items*[T](x: Array[T]): T =
@@ -103,7 +115,7 @@ proc `==`*[T](a, b: Array[T]): bool =
   let len = a.len
   if len != b.len: return false
   for i in 0 ..< len:
-    if a[i] != b[i]: return false
+    if a[UncheckedIndex(i)] != b[UncheckedIndex(i)]: return false
   true
 
 import hashes
@@ -112,5 +124,5 @@ proc hash*[T](a: Array[T]): Hash =
   mixin hash
   result = result !& hash a.len
   for i in 0 ..< a.len:
-    result = result !& hash a[i]
+    result = result !& hash a[UncheckedIndex(i)]
   result = !$ result

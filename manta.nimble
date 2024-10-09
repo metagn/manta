@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "metagn"
 description   = "runtime array types with destructors"
 license       = "MIT"
@@ -26,7 +26,14 @@ task tests, "run tests for multiple backends and defines":
   when declared(runTests):
     runTests(
       backends = {c, cpp},
-      optionCombos = @["--mm:orc", "--mm:arc", "--mm:refc"]
+      optionCombos = @[
+        "--mm:orc",
+        "--mm:arc",
+        "--mm:refc",
+        "--mm:orc -d:nimPreviewNonVarDestructor",
+        "--mm:arc -d:nimPreviewNonVarDestructor",
+        "--mm:refc -d:nimPreviewNonVarDestructor",
+      ]
     )
   else:
     echo "tests task not implemented, need nimbleutils"

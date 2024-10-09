@@ -9,7 +9,7 @@ template uninitArrObj*[T](arr: var ref ArrayObj[T], L: int): untyped =
   unsafeNew(arr, sizeof(arr.length) + L * sizeof(T))
   arr.length = L
 
-when defined(nimPreviewNonVarDestructor):
+when defined(nimPreviewNonVarDestructor) and defined(gcDestructors):
   # needs `ArrayObj` to be `byref`, or at least the parameter
   proc `=destroy`*[T](arr: ArrayObj[T]) =
     for i in 0 ..< arr.length:

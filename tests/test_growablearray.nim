@@ -3,7 +3,7 @@ when (compiles do: import nimbleutils/bridge):
 else:
   import unittest
 
-import manta/array
+import manta/growablearray
 
 type Foo = ref object
   x: int
@@ -11,20 +11,22 @@ proc foo(x: int): Foo = Foo(x: x)
 proc `$`*(f: Foo): string = "foo(" & $f.x & ")"
 
 test "basic type":
-  var f: Array[Array[Foo]]
+  var f: GrowableArray[GrowableArray[Foo]]
   block:
-    var a = @[foo(1), foo(2), foo(3), foo(4), foo(5)].toArray()
+    var a = @[foo(1), foo(2), foo(3), foo(4), foo(5)].toGrowableArray()
     check $a == "[foo(1), foo(2), foo(3), foo(4), foo(5)]"
     a[2] = foo 7
     check $a == "[foo(1), foo(2), foo(7), foo(4), foo(5)]"
-    f = [a].toArray
+    a.add(foo(6))
+    check $a == "[foo(1), foo(2), foo(7), foo(4), foo(5), foo(6)]"
+    f = [a].toGrowableArray
   block: # after leaving block
-    check $f == "[[foo(1), foo(2), foo(7), foo(4), foo(5)]]"
+    check $f == "[[foo(1), foo(2), foo(7), foo(4), foo(5), foo(6)]]"
 
 type Tree = object
   case atom: bool
   of false:
-    node: Array[Tree]
+    node: GrowableArray[Tree]
   of true:
     leaf: int
 proc `$`(x: Tree): string =
@@ -33,17 +35,20 @@ proc `$`(x: Tree): string =
   else:
     $x.node
 proc tree(arr: varargs[Tree]): Tree =
-  Tree(atom: false, node: toArray(arr))
+  Tree(atom: false, node: toGrowableArray(arr))
 proc leaf(x: int): Tree = Tree(atom: true, leaf: x)
 
-test "tree":
+test "tree + growing":
   let x = tree(leaf(1), tree(leaf(2), tree(leaf(3), tree(leaf(4), tree(leaf(5))))))
   check $x == "[1, [2, [3, [4, [5]]]]]"
+  var y = x
+  y.node.add(x)
+  check $y == "[1, [2, [3, [4, [5]]]], [1, [2, [3, [4, [5]]]]]]"
 
 type
   Owner = ref object
     name: string
-    subjects: Array[Subject]
+    subjects: GrowableArray[Subject]
   Subject = ref object
     name: string
     owner: Owner
@@ -63,20 +68,39 @@ proc `$`(x: Subject): string =
   else:
     result.add("owner " & $x.owner.name)
 
-test "simple cycle":
+test "simple cycle + growing":
   # does not work for Nim < 2.0.10
   var owner = Owner(name: "O")
   var subjectA = Subject(name: "A", owner: owner)
   var subjectB = Subject(name: "B", owner: owner)
-  owner.subjects = toArray([subjectA, subjectB])
+  owner.subjects = toGrowableArray([subjectA, subjectB])
   check $owner == "owner O with subjects A B"
   check $subjectA == "subject A with owner O"
   check $subjectB == "subject B with owner O"
+  owner.subjects.add(subjectA)
+  check $owner == "owner O with subjects A B A"
+  check $subjectA == "subject A with owner O"
+  check $subjectB == "subject B with owner O"
 
-test "value semantics":
-  var x = toArray([1, 2, 3])
+test "value semantics + growing":
+  var x = toGrowableArray([1, 2, 3])
   let y = x
   x[1] = 5
-  check x == toArray([1, 5, 3])
-  check y == toArray([1, 2, 3])
+  check x == toGrowableArray([1, 5, 3])
+  check y == toGrowableArray([1, 2, 3])
   check x != y
+  x.add(4)
+  check x == toGrowableArray([1, 5, 3, 4])
+  check y == toGrowableArray([1, 2, 3])
+  check x != y
+  x.del(2)
+  check x == toGrowableArray([1, 5, 4])
+  check x.pop() == 4
+  check x == toGrowableArray([1, 5])
+  x.setLen(5)
+  check x == toGrowableArray([1, 5, 0, 0, 0])
+  x[4] = 6
+  x.setLen(4)
+  check x == toGrowableArray([1, 5, 0, 0])
+  x.setLen(6)
+  check x == toGrowableArray([1, 5, 0, 0, 0, 0])

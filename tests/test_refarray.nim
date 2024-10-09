@@ -40,6 +40,39 @@ test "tree":
   let x = tree(leaf(1), tree(leaf(2), tree(leaf(3), tree(leaf(4), tree(leaf(5))))))
   check $x == "[1, [2, [3, [4, [5]]]]]"
 
+type
+  Owner = ref object
+    name: string
+    subjects: RefArray[Subject]
+  Subject = ref object
+    name: string
+    owner: Owner
+
+proc `$`(x: Owner): string =
+  if x == nil:
+    result = "nil owner"
+  else:
+    result = "owner " & x.name & " with subjects"
+    for s in x.subjects:
+      result.add(" ")
+      result.add(s.name)
+proc `$`(x: Subject): string =
+  result = "subject " & x.name & " with "
+  if x.owner == nil:
+    result.add("nil owner")
+  else:
+    result.add("owner " & $x.owner.name)
+
+test "simple cycle":
+  # does not work for Nim < 2.0.10
+  var owner = Owner(name: "O")
+  var subjectA = Subject(name: "A", owner: owner)
+  var subjectB = Subject(name: "B", owner: owner)
+  owner.subjects = toRefArray([subjectA, subjectB])
+  check $owner == "owner O with subjects A B"
+  check $subjectA == "subject A with owner O"
+  check $subjectB == "subject B with owner O"
+
 test "reference semantics":
   var x = toRefArray([1, 2, 3])
   let y = x

@@ -1,4 +1,4 @@
-import ./arrayobj
+import ./[arrayobj, uncheckedindex]
 
 type RefArray*[T] = object
   ## array with constant runtime length and reference semantics
@@ -15,6 +15,15 @@ proc `=trace`*[T](arr: var RefArray[T]; env: pointer) =
 proc len*[T](x: RefArray[T]): int {.inline.} =
   if x.impl.isNil: 0
   else: x.impl.length
+
+proc `[]`*[T](x: RefArray[T], i: UncheckedIndex): lent T {.inline.} =
+  x.impl.data[int i]
+
+proc `[]`*[T](x: var RefArray[T], i: UncheckedIndex): var T {.inline.} =
+  x.impl.data[int i]
+
+proc `[]=`*[T](x: RefArray[T], i: UncheckedIndex, val: sink T) {.inline.} =
+  x.impl.data[int i] = val
 
 proc `[]`*[T](x: RefArray[T], i: int): lent T {.inline.} =
   rangeCheck i >= 0 and i < x.len
@@ -88,7 +97,7 @@ proc `==`*[T](a, b: RefArray[T]): bool =
   let len = a.len
   if len != b.len: return false
   for i in 0 ..< len:
-    if a[i] != b[i]: return false
+    if a[UncheckedIndex(i)] != b[UncheckedIndex(i)]: return false
   true
 
 import hashes
@@ -97,5 +106,5 @@ proc hash*[T](a: RefArray[T]): Hash =
   mixin hash
   result = result !& hash a.len
   for i in 0 ..< a.len:
-    result = result !& hash a[i]
+    result = result !& hash a[UncheckedIndex(i)]
   result = !$ result

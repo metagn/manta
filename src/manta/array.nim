@@ -76,16 +76,16 @@ iterator mpairs*[T](x: var Array[T]): (int, var T) =
   for i in 0 ..< L:
     yield (i, x.impl.data[i])
 
-proc newArrayUninit*[T](length: int): Array[T] {.inline.} =
+proc initArrayUninit*[T](length: int): Array[T] {.inline.} =
   uninitArrObj result.impl, length
 
-proc newArray*[T](length: int): Array[T] =
+proc initArray*[T](length: int): Array[T] =
   uninitArrObj result.impl, length
   for i in 0 ..< length:
     result.impl.data[i] = default(T)
 
 proc toArray*[T](arr: openarray[T]): Array[T] =
-  result = newArrayUninit[T](arr.len)
+  result = initArrayUninit[T](arr.len)
   for i in 0 ..< arr.len:
     result.impl.data[i] = arr[i]
 
@@ -112,6 +112,7 @@ proc `$`*[T](x: Array[T]): string =
   result.add("]")
 
 proc `==`*[T](a, b: Array[T]): bool =
+  if cast[pointer](a.impl) == cast[pointer](b.impl): return true
   let len = a.len
   if len != b.len: return false
   for i in 0 ..< len:

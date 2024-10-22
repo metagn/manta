@@ -57,16 +57,16 @@ iterator mpairs*[T](x: RefArray[T]): (int, var T) =
   for i in 0 ..< L:
     yield (i, x.impl.data[i])
 
-proc newRefArrayUninit*[T](length: int): RefArray[T] {.inline.} =
+proc newArrayUninit*[T](length: int): RefArray[T] {.inline.} =
   uninitArrObj result.impl, length
 
-proc newRefArray*[T](length: int): RefArray[T] =
+proc newArray*[T](length: int): RefArray[T] =
   uninitArrObj result.impl, length
   for i in 0 ..< length:
     result.impl.data[i] = default(T)
 
 proc toRefArray*[T](arr: openarray[T]): RefArray[T] =
-  result = newRefArrayUninit[T](arr.len)
+  result = newArrayUninit[T](arr.len)
   for i in 0 ..< arr.len:
     result.impl.data[i] = arr[i]
 
@@ -94,6 +94,7 @@ proc `$`*[T](x: RefArray[T]): string =
   result.add("]")
 
 proc `==`*[T](a, b: RefArray[T]): bool =
+  if cast[pointer](a.impl) == cast[pointer](b.impl): return true
   let len = a.len
   if len != b.len: return false
   for i in 0 ..< len:

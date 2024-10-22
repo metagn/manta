@@ -1,2 +1,2 @@
-import manta/[array, refarray, growablearray, uncheckedindex]
-export array, refarray, growablearray, uncheckedindex
+import manta/[array, refarray, growarray, uncheckedindex]
+export array, refarray, growarray, uncheckedindex

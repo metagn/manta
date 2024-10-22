@@ -3,7 +3,7 @@ when (compiles do: import nimbleutils/bridge):
 else:
   import unittest
 
-import manta/growablearray
+import manta/growarray
 
 type Foo = ref object
   x: int
@@ -11,22 +11,22 @@ proc foo(x: int): Foo = Foo(x: x)
 proc `$`*(f: Foo): string = "foo(" & $f.x & ")"
 
 test "basic type":
-  var f: GrowableArray[GrowableArray[Foo]]
+  var f: GrowArray[GrowArray[Foo]]
   block:
-    var a = @[foo(1), foo(2), foo(3), foo(4), foo(5)].toGrowableArray()
+    var a = @[foo(1), foo(2), foo(3), foo(4), foo(5)].toGrowArray()
     check $a == "[foo(1), foo(2), foo(3), foo(4), foo(5)]"
     a[2] = foo 7
     check $a == "[foo(1), foo(2), foo(7), foo(4), foo(5)]"
     a.add(foo(6))
     check $a == "[foo(1), foo(2), foo(7), foo(4), foo(5), foo(6)]"
-    f = [a].toGrowableArray
+    f = [a].toGrowArray
   block: # after leaving block
     check $f == "[[foo(1), foo(2), foo(7), foo(4), foo(5), foo(6)]]"
 
 type Tree = object
   case atom: bool
   of false:
-    node: GrowableArray[Tree]
+    node: GrowArray[Tree]
   of true:
     leaf: int
 proc `$`(x: Tree): string =
@@ -35,7 +35,7 @@ proc `$`(x: Tree): string =
   else:
     $x.node
 proc tree(arr: varargs[Tree]): Tree =
-  Tree(atom: false, node: toGrowableArray(arr))
+  Tree(atom: false, node: toGrowArray(arr))
 proc leaf(x: int): Tree = Tree(atom: true, leaf: x)
 
 test "tree + growing":
@@ -48,7 +48,7 @@ test "tree + growing":
 type
   Owner = ref object
     name: string
-    subjects: GrowableArray[Subject]
+    subjects: GrowArray[Subject]
   Subject = ref object
     name: string
     owner: Owner
@@ -73,7 +73,7 @@ test "simple cycle + growing":
   var owner = Owner(name: "O")
   var subjectA = Subject(name: "A", owner: owner)
   var subjectB = Subject(name: "B", owner: owner)
-  owner.subjects = toGrowableArray([subjectA, subjectB])
+  owner.subjects = toGrowArray([subjectA, subjectB])
   check $owner == "owner O with subjects A B"
   check $subjectA == "subject A with owner O"
   check $subjectB == "subject B with owner O"
@@ -83,24 +83,24 @@ test "simple cycle + growing":
   check $subjectB == "subject B with owner O"
 
 test "value semantics + growing":
-  var x = toGrowableArray([1, 2, 3])
+  var x = toGrowArray([1, 2, 3])
   let y = x
   x[1] = 5
-  check x == toGrowableArray([1, 5, 3])
-  check y == toGrowableArray([1, 2, 3])
+  check x == toGrowArray([1, 5, 3])
+  check y == toGrowArray([1, 2, 3])
   check x != y
   x.add(4)
-  check x == toGrowableArray([1, 5, 3, 4])
-  check y == toGrowableArray([1, 2, 3])
+  check x == toGrowArray([1, 5, 3, 4])
+  check y == toGrowArray([1, 2, 3])
   check x != y
   x.del(2)
-  check x == toGrowableArray([1, 5, 4])
+  check x == toGrowArray([1, 5, 4])
   check x.pop() == 4
-  check x == toGrowableArray([1, 5])
+  check x == toGrowArray([1, 5])
   x.setLen(5)
-  check x == toGrowableArray([1, 5, 0, 0, 0])
+  check x == toGrowArray([1, 5, 0, 0, 0])
   x[4] = 6
   x.setLen(4)
-  check x == toGrowableArray([1, 5, 0, 0])
+  check x == toGrowArray([1, 5, 0, 0])
   x.setLen(6)
-  check x == toGrowableArray([1, 5, 0, 0, 0, 0])
+  check x == toGrowArray([1, 5, 0, 0, 0, 0])

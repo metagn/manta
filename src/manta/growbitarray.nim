@@ -73,7 +73,7 @@ proc `[]`*(arr: GrowBitArray, i: UncheckedIndex): bool {.inline.} =
     let data = cast[HeapDataImpl](arr.data)
     bool((data[byteIndex(i)] shr byteOffset(i)) and 1)
   else:
-    let data = if bool(wordIndex(i)): cast[uint](arr.cap) else: cast[uint](arr.data)
+    let data = if bool(wordIndex(i)): cast[uint](arr.data) else: cast[uint](arr.cap)
     bool((data shr wordOffset(i)) and 1)
 
 proc `[]`*(arr: GrowBitArray, i: int): bool {.inline.} =
@@ -88,7 +88,7 @@ proc incl*(arr: var GrowBitArray, i: UncheckedIndex) {.inline.} =
     let data = cast[HeapDataImpl](arr.data)
     data[byteIndex(i)] = data[byteIndex(i)] or byteMask(i)
   else:
-    let data = if bool(wordIndex(i)): cast[ptr uint](addr arr.cap) else: cast[ptr uint](addr arr.data)
+    let data = if bool(wordIndex(i)): cast[ptr uint](addr arr.data) else: cast[ptr uint](addr arr.cap)
     data[] = data[] or wordMask(i)
 
 proc excl*(arr: var GrowBitArray, i: UncheckedIndex) {.inline.} =
@@ -96,7 +96,7 @@ proc excl*(arr: var GrowBitArray, i: UncheckedIndex) {.inline.} =
     let data = cast[HeapDataImpl](arr.data)
     data[byteIndex(i)] = data[byteIndex(i)] and not byteMask(i)
   else:
-    let data = if bool(wordIndex(i)): cast[ptr uint](addr arr.cap) else: cast[ptr uint](addr arr.data)
+    let data = if bool(wordIndex(i)): cast[ptr uint](addr arr.data) else: cast[ptr uint](addr arr.cap)
     data[] = data[] and not wordMask(i)
 
 proc `[]=`*(arr: var GrowBitArray, i: UncheckedIndex, val: bool) {.inline.} =
@@ -104,6 +104,18 @@ proc `[]=`*(arr: var GrowBitArray, i: UncheckedIndex, val: bool) {.inline.} =
     incl(arr, i)
   else:
     excl(arr, i)
+
+proc incl*(arr: var GrowBitArray, i: int) {.inline.} =
+  rangeCheck i >= 0 and i < arr.len
+  arr.incl(UncheckedIndex i)
+
+proc excl*(arr: var GrowBitArray, i: int, val: bool) {.inline.} =
+  rangeCheck i >= 0 and i < arr.len
+  arr.excl(UncheckedIndex i)
+
+proc `[]=`*(arr: var GrowBitArray, i: int, val: bool) {.inline.} =
+  rangeCheck i >= 0 and i < arr.len
+  arr[UncheckedIndex i] = val
 
 iterator items*(arr: GrowBitArray): bool =
   let L = arr.len
@@ -134,7 +146,7 @@ iterator items*(arr: GrowBitArray): bool =
         yield bool(b and 1)
         b = b shr 1
   elif wordIndex(UncheckedIndex(L - 1)) < 1:
-    var b = cast[uint](arr.data)
+    var b = cast[uint](arr.cap)
     let fullBytes = byteIndex(L.UncheckedIndex)
     for i in 0 ..< fullBytes:
       yield bool(b and 1) # bit 1
@@ -159,9 +171,9 @@ iterator items*(arr: GrowBitArray): bool =
         yield bool(b and 1)
         b = b shr 1
   else:
-    var b = cast[uint](arr.data)
+    var b = cast[uint](arr.cap)
     let fullBytes = byteIndex(L.UncheckedIndex)
-    for i in 0 ..< 8:
+    for i in 0 ..< sizeof(int):
       yield bool(b and 1) # bit 1
       b = b shr 1
       yield bool(b and 1) # bit 2
@@ -178,8 +190,8 @@ iterator items*(arr: GrowBitArray): bool =
       b = b shr 1
       yield bool(b and 1) # bit 8
       b = b shr 1
-    b = cast[uint](arr.cap)
-    for i in 8 ..< fullBytes:
+    b = cast[uint](arr.data)
+    for i in sizeof(uint) ..< fullBytes:
       yield bool(b and 1) # bit 1
       b = b shr 1
       yield bool(b and 1) # bit 2
@@ -202,30 +214,32 @@ iterator items*(arr: GrowBitArray): bool =
         yield bool(b and 1)
         b = b shr 1
 
-proc newBitArrayUninit*(length: int): GrowBitArray {.inline.} =
+proc initGrowBitArrayUninit*(length: int): GrowBitArray {.inline.} =
   result = GrowBitArray(len: length)
   if length > maxStackLen:
-    result.cap = length
-    unsafeNew(cast[ptr HeapDataImpl](addr result.data)[], byteCount(length))
+    result.cap = byteCount(length)
+    unsafeNew(cast[ptr HeapDataImpl](addr result.data)[], result.cap)
 
-proc newBitArray*(length: int): GrowBitArray =
+proc initGrowBitArray*(length: int): GrowBitArray =
   result = GrowBitArray(len: length)
   if length > maxStackLen:
-    result.cap = length
-    let heapLen = byteCount(length)
-    unsafeNew(cast[ptr HeapDataImpl](addr result.data)[], heapLen)
-    zeroMem(result.data, heapLen)
+    result.cap = byteCount(length)
+    unsafeNew(cast[ptr HeapDataImpl](addr result.data)[], result.cap)
+    zeroMem(result.data, result.cap)
   else:
     result.cap = 0
     result.data = nil
 
 proc toGrowBitArray*(arr: openarray[bool]): GrowBitArray =
-  result = newBitArrayUninit(arr.len)
+  result = initGrowBitArrayUninit(arr.len)
   var data: ptr UncheckedArray[byte]
   template impl(useBigEndian: static bool) =
     let fullBytes = byteIndex(arr.len.UncheckedIndex)
-    for i in (when useBigEndian: 1 .. fullBytes else: 0 ..< fullBytes):
-      data[when useBigEndian: arr.len - i else: i] = arr[i].byte or
+    when useBigEndian:
+      let realBytes = byteCount(arr.len)
+    for byteI in 0 ..< fullBytes:
+      let i = byteI * 8
+      data[when useBigEndian: realBytes - byteI - 1 else: byteI] = arr[i].byte or
         (arr[i + 1].byte shl 1) or
         (arr[i + 2].byte shl 2) or
         (arr[i + 3].byte shl 3) or
@@ -238,7 +252,7 @@ proc toGrowBitArray*(arr: openarray[bool]): GrowBitArray =
       let start = fullBytes * 8
       var b = arr[start].byte
       for i in 1 ..< offset:
-        b = arr[start + i].byte shl i
+        b = b or (arr[start + i].byte shl i)
       data[when useBigEndian: 0 else: fullBytes] = b
   if arr.len > maxStackLen:
     data = cast[ptr UncheckedArray[byte]](result.data)
@@ -283,10 +297,10 @@ proc `==`*(a, b: GrowBitArray): bool =
         return false
     true
   elif wordIndex(UncheckedIndex(len - 1)) > 0:
-    a.data == b.data and
-      truncWord(cast[uint](a.cap), len) == truncWord(cast[uint](b.cap), len)
+    a.cap == b.cap and
+      truncWord(cast[uint](a.data), len) == truncWord(cast[uint](b.data), len)
   else:
-    truncWord(cast[uint](a.data), len) == truncWord(cast[uint](b.data), len)
+    truncWord(cast[uint](a.cap), len) == truncWord(cast[uint](b.cap), len)
 
 import hashes
 
@@ -301,9 +315,118 @@ proc hash*(a: GrowBitArray): Hash =
     if offset != 0:
       result = result !& hash(data[fullBytes] and lastByteMasks[offset])
   elif wordIndex(UncheckedIndex(len - 1)) > 0:
-    result = result !& hash cast[uint](a.data)
-    result = result !& hash truncWord(cast[uint](a.cap), len)
-  else:
+    result = result !& hash cast[uint](a.cap)
     result = result !& hash truncWord(cast[uint](a.data), len)
+  else:
+    result = result !& hash truncWord(cast[uint](a.cap), len)
   result = !$ result
+
+# growable functionality:
+# XXX suspicious
+
+proc capacity*(a: GrowBitArray): int {.inline.} =
+  if a.isHeap:
+    result = a.cap # in bytes
+  else:
+    result = 0
+
+proc moveToStack(a: var GrowBitArray) =
+  let src = cast[HeapDataImpl](a.data)
+  when cpuEndian == littleEndian:
+    moveMem(addr a.cap, cast[pointer](src), 2 * sizeof(int))
+  else:
+    let dest = cast[ptr UncheckedArray[byte]](addr a.cap)
+    for i in 0 ..< 2 * sizeof(int):
+      dest[2 * sizeof(int) - i - 1] = src[i]
+  `=destroy`(src)
+
+proc moveToHeap(a: var GrowBitArray, dest: ptr UncheckedArray[byte]) =
+  when cpuEndian == littleEndian:
+    moveMem(dest, addr a.cap, 2 * sizeof(int))
+  else:
+    var srcData = [cast[uint](a.cap), cast[uint](a.data)]
+    moveMem(dest, addr srcData, 2 * sizeof(int))
+
+proc newSize(old: int): int {.inline.} =
+  # copied from nim
+  if old <= 8: result = 8
+  elif old <= high(int16): result = old * 2
+  else: result = old div 2 + old # for large arrays * 3/2 is better
+
+proc setLen*(a: var GrowBitArray, newLen: int) =
+  let oldLen = a.len
+  if newLen > maxStackLen:
+    var newHeapLen = byteCount(newLen)
+    if oldLen > maxStackLen:
+      let oldHeapLen = a.cap # byteCount(oldLen)
+      if newHeapLen > oldHeapLen:
+        let x = newSize(oldHeapLen)
+        if x > newHeapLen: newHeapLen = x
+        var newData: HeapDataImpl
+        unsafeNew(newData, newHeapLen)
+        zeroMem(cast[pointer](newData), newHeapLen)
+        moveMem(cast[pointer](newData), cast[pointer](a.data), oldHeapLen)
+        a.data = cast[pointer](newData)
+        a.cap = newHeapLen
+      elif newLen < oldLen:
+        for i in newLen ..< oldLen:
+          excl a, UncheckedIndex(i)
+    else:
+      var newData: HeapDataImpl
+      unsafeNew(newData, newHeapLen)
+      zeroMem(cast[pointer](newData), newHeapLen)
+      moveToHeap(a, cast[ptr UncheckedArray[byte]](newData))
+      a.data = cast[pointer](newData)
+      a.cap = newHeapLen
+    a.len = newLen
+  else:
+    a.len = newLen
+    if oldLen > maxStackLen:
+      moveToStack(a)
+      for i in newLen ..< maxStackLen:
+        excl a, UncheckedIndex(i)
+    elif newLen < oldLen:
+      for i in newLen ..< oldLen:
+        excl a, UncheckedIndex(i)
+
+proc setLenUninit*(a: var GrowBitArray, newLen: int) {.inline.} =
+  let oldLen = a.len
+  if newLen > maxStackLen:
+    var newHeapLen = byteCount(newLen)
+    if oldLen > maxStackLen:
+      let oldHeapLen = a.cap # byteCount(oldLen)
+      if newHeapLen > oldHeapLen:
+        let x = newSize(oldHeapLen)
+        if x > newHeapLen: newHeapLen = x
+        var newData: HeapDataImpl
+        unsafeNew(newData, newHeapLen)
+        moveMem(cast[pointer](newData), cast[pointer](a.data), oldHeapLen)
+        a.data = cast[pointer](newData)
+        a.cap = newHeapLen
+    else:
+      var newData: HeapDataImpl
+      unsafeNew(newData, newHeapLen)
+      moveToHeap(a, cast[ptr UncheckedArray[byte]](newData))
+      a.data = cast[pointer](newData)
+      a.cap = newHeapLen
+  else:
+    if oldLen > maxStackLen:
+      moveToStack(a)
+  a.len = newLen
+
+proc add*(a: var GrowBitArray, item: bool) =
+  let initialLen = a.len
+  setLenUninit(a, initialLen + 1)
+  a[UncheckedIndex(initialLen)] = item
+
+proc del*(a: var GrowBitArray, i: int) =
+  let last = a[UncheckedIndex(a.len - 1)]
+  a[UncheckedIndex(i)] = last
+  setLen(a, a.len - 1)
+
+proc pop*(a: var GrowBitArray): bool =
+  result = a[UncheckedIndex(a.len - 1)]
+  setLen(a, a.len - 1)
+
+# missing: splice operations, so also insert/delete
 

@@ -102,6 +102,18 @@ proc `[]=`*(arr: var BitArray, i: UncheckedIndex, val: bool) {.inline.} =
   else:
     excl(arr, i)
 
+proc incl*(arr: var BitArray, i: int) {.inline.} =
+  rangeCheck i >= 0 and i < arr.len
+  arr.incl(UncheckedIndex i)
+
+proc excl*(arr: var BitArray, i: int, val: bool) {.inline.} =
+  rangeCheck i >= 0 and i < arr.len
+  arr.excl(UncheckedIndex i)
+
+proc `[]=`*(arr: var BitArray, i: int, val: bool) {.inline.} =
+  rangeCheck i >= 0 and i < arr.len
+  arr[UncheckedIndex i] = val
+
 iterator items*(arr: BitArray): bool =
   let L = arr.len
   if L > maxStackLen:
@@ -156,12 +168,12 @@ iterator items*(arr: BitArray): bool =
         yield bool(b and 1)
         b = b shr 1
 
-proc newBitArrayUninit*(length: int): BitArray {.inline.} =
+proc initBitArrayUninit*(length: int): BitArray {.inline.} =
   result = BitArray(len: length)
   if length > maxStackLen:
     unsafeNew(cast[ptr HeapDataImpl](addr result.data)[], byteCount(length))
 
-proc newBitArray*(length: int): BitArray =
+proc initBitArray*(length: int): BitArray =
   result = BitArray(len: length)
   if length > maxStackLen:
     let heapLen = byteCount(length)
@@ -171,12 +183,15 @@ proc newBitArray*(length: int): BitArray =
     result.data = nil
 
 proc toBitArray*(arr: openarray[bool]): BitArray =
-  result = newBitArrayUninit(arr.len)
+  result = initBitArrayUninit(arr.len)
   var data: ptr UncheckedArray[byte]
   template impl(useBigEndian: static bool) =
     let fullBytes = byteIndex(arr.len.UncheckedIndex)
-    for i in (when useBigEndian: 1 .. fullBytes else: 0 ..< fullBytes):
-      data[when useBigEndian: arr.len - i else: i] = arr[i].byte or
+    when useBigEndian:
+      let realBytes = byteCount(arr.len)
+    for byteI in 0 ..< fullBytes:
+      let i = byteI * 8
+      data[when useBigEndian: realBytes - byteI - 1 else: byteI] = arr[i].byte or
         (arr[i + 1].byte shl 1) or
         (arr[i + 2].byte shl 2) or
         (arr[i + 3].byte shl 3) or
@@ -189,7 +204,7 @@ proc toBitArray*(arr: openarray[bool]): BitArray =
       let start = fullBytes * 8
       var b = arr[start].byte
       for i in 1 ..< offset:
-        b = arr[start + i].byte shl i
+        b = b or (arr[start + i].byte shl i)
       data[when useBigEndian: 0 else: fullBytes] = b
   if arr.len > maxStackLen:
     data = cast[ptr UncheckedArray[byte]](result.data)

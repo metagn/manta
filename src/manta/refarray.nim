@@ -9,8 +9,11 @@ proc `=trace`*[T](arr: var RefArray[T]; env: pointer) =
     for i in 0 ..< arr.impl.length:
       `=trace`(arr.impl.data[i], env)
 
+proc `=wasMoved`*[T](arr: var RefArray[T]) {.inline, nodestroy.} =
+  arr.impl = nil
+
 # `=copy` and `=sink` not defined, no-ops since reference semantics
-# `=destroy`, `=wasMoved` handled by `ArrayObj`
+# `=destroy` handled by `ArrayObj`
 
 proc len*[T](x: RefArray[T]): int {.inline.} =
   if x.impl.isNil: 0

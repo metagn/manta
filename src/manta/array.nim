@@ -29,7 +29,10 @@ proc `=dup`*[T](src: Array[T]): Array[T] =
     for i in 0 ..< L:
       `=copy`(result.impl.data[i], src.impl.data[i])
 
-# `=destroy`, `=wasMoved` handled by `ArrayObj`
+proc `=wasMoved`*[T](arr: var Array[T]) {.inline, nodestroy.} =
+  arr.impl = nil
+
+# `=destroy` handled by `ArrayObj`
 
 proc len*[T](x: Array[T]): int {.inline.} =
   if x.impl.isNil: 0

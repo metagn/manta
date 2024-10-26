@@ -97,9 +97,6 @@ test "larger sizes":
   for i in s45.len ..< s200.len:
     s200bits[i] = not s[i]
     newS200[i] = not s[i]
-  # these 2 lines make tests below pass?
-  let newS200Bits = toGrowBitArray(newS200)
-  check s200bits == newS200Bits
   var s200grownRemadeItems: seq[bool]
   for x in s200bits:
     s200grownRemadeItems.add(x)
@@ -110,3 +107,5 @@ test "larger sizes":
     s200grownRemadeIndex.add(s200bits[i])
   check newS200 == s200grownRemadeIndex
   check s200grownRemadeItems == s200grownRemadeIndex
+  let newS200Bits = toGrowBitArray(newS200)
+  check s200bits == newS200Bits

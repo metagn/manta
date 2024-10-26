@@ -3,7 +3,7 @@ import ./uncheckedindex
 type GrowBitArray* = object
   ## growable version of BitArray
   ## uses 3 words, with 2 words for stack optimization
-  len, cap: int
+  len, cap: int # len in bits, cap in bytes
   data: pointer
 
 type HeapDataImpl = ref UncheckedArray[byte]
@@ -325,27 +325,37 @@ proc hash*(a: GrowBitArray): Hash =
 # XXX suspicious
 
 proc capacity*(a: GrowBitArray): int {.inline.} =
+  ## returns capacity in bytes, 0 if on stack
   if a.isHeap:
     result = a.cap # in bytes
   else:
     result = 0
 
-proc moveToStack(a: var GrowBitArray) =
-  let src = cast[HeapDataImpl](a.data)
+proc moveToStack(a: var GrowBitArray) {.nodestroy.} =
+  var src = cast[HeapDataImpl](a.data)
   when cpuEndian == littleEndian:
     moveMem(addr a.cap, cast[pointer](src), 2 * sizeof(int))
   else:
-    let dest = cast[ptr UncheckedArray[byte]](addr a.cap)
-    for i in 0 ..< 2 * sizeof(int):
-      dest[2 * sizeof(int) - i - 1] = src[i]
+    # possibly wrong
+    var dest = cast[ptr UncheckedArray[byte]](addr a.cap)
+    for i in 0 ..< sizeof(int):
+      dest[sizeof(int) - i - 1] = src[i]
+    dest = cast[ptr UncheckedArray[byte]](addr a.data)
+    for i in 0 ..< sizeof(int):
+      dest[sizeof(int) - i - 1] = src[sizeof(int) + i]
   `=destroy`(src)
 
 proc moveToHeap(a: var GrowBitArray, dest: ptr UncheckedArray[byte]) =
   when cpuEndian == littleEndian:
     moveMem(dest, addr a.cap, 2 * sizeof(int))
   else:
-    var srcData = [cast[uint](a.cap), cast[uint](a.data)]
-    moveMem(dest, addr srcData, 2 * sizeof(int))
+    # possibly wrong
+    var src = cast[ptr UncheckedArray[byte]](addr a.cap)
+    for i in 0 ..< sizeof(int):
+      dest[i] = src[sizeof(int) - i - 1]
+    src = cast[ptr UncheckedArray[byte]](addr a.data)
+    for i in 0 ..< sizeof(int):
+      dest[sizeof(int) + i] = src[sizeof(int) - i - 1]
 
 proc newSize(old: int): int {.inline.} =
   # copied from nim
@@ -353,7 +363,7 @@ proc newSize(old: int): int {.inline.} =
   elif old <= high(int16): result = old * 2
   else: result = old div 2 + old # for large arrays * 3/2 is better
 
-proc setLen*(a: var GrowBitArray, newLen: int) =
+proc setLen*(a: var GrowBitArray, newLen: int) {.nodestroy.} =
   let oldLen = a.len
   if newLen > maxStackLen:
     var newHeapLen = byteCount(newLen)
@@ -363,6 +373,8 @@ proc setLen*(a: var GrowBitArray, newLen: int) =
         let x = newSize(oldHeapLen)
         if x > newHeapLen: newHeapLen = x
         var newData: HeapDataImpl
+          # this needs to not be destroyed, hence `nodestroy`
+          # worst case call `=dup` on the last assignment below
         unsafeNew(newData, newHeapLen)
         zeroMem(cast[pointer](newData), newHeapLen)
         moveMem(cast[pointer](newData), cast[pointer](a.data), oldHeapLen)
@@ -373,6 +385,8 @@ proc setLen*(a: var GrowBitArray, newLen: int) =
           excl a, UncheckedIndex(i)
     else:
       var newData: HeapDataImpl
+        # this needs to not be destroyed, hence `nodestroy`
+        # worst case call `=dup` on the last assignment below
       unsafeNew(newData, newHeapLen)
       zeroMem(cast[pointer](newData), newHeapLen)
       moveToHeap(a, cast[ptr UncheckedArray[byte]](newData))
@@ -389,7 +403,7 @@ proc setLen*(a: var GrowBitArray, newLen: int) =
       for i in newLen ..< oldLen:
         excl a, UncheckedIndex(i)
 
-proc setLenUninit*(a: var GrowBitArray, newLen: int) {.inline.} =
+proc setLenUninit*(a: var GrowBitArray, newLen: int) {.nodestroy, inline.} =
   let oldLen = a.len
   if newLen > maxStackLen:
     var newHeapLen = byteCount(newLen)
@@ -399,12 +413,16 @@ proc setLenUninit*(a: var GrowBitArray, newLen: int) {.inline.} =
         let x = newSize(oldHeapLen)
         if x > newHeapLen: newHeapLen = x
         var newData: HeapDataImpl
+          # this needs to not be destroyed, hence `nodestroy`
+          # worst case call `=dup` on the last assignment below
         unsafeNew(newData, newHeapLen)
         moveMem(cast[pointer](newData), cast[pointer](a.data), oldHeapLen)
         a.data = cast[pointer](newData)
         a.cap = newHeapLen
     else:
       var newData: HeapDataImpl
+        # this needs to not be destroyed, hence `nodestroy`
+        # worst case call `=dup` on the last assignment below
       unsafeNew(newData, newHeapLen)
       moveToHeap(a, cast[ptr UncheckedArray[byte]](newData))
       a.data = cast[pointer](newData)

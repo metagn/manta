@@ -10,6 +10,8 @@ type
     impl: ref CapArrayObj[T]
 
 template uninitCapArrObj[T](arr: var ref CapArrayObj[T], c, L: int): untyped =
+  # unsafeNew zeroes memory, so this is not really "uninitialized"
+  # different story if default(T) is nonzero though
   unsafeNew(arr, sizeof(arr.length) + sizeof(arr.cap) + c * sizeof(T))
   arr.length = L
   arr.cap = c
@@ -31,6 +33,9 @@ else:
 proc `=wasMoved`*[T](arr: var CapArrayObj[T]) {.inline.} =
   arr.length = 0
   arr.cap = 0
+
+proc `=wasMoved`*[T](arr: var CapArray[T]) {.inline, nodestroy.} =
+  arr.impl = nil
 
 proc `=trace`*[T](arr: var CapArrayObj[T]; env: pointer) =
   for i in 0 ..< arr.length:

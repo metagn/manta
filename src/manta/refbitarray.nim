@@ -31,7 +31,7 @@ template byteIndex(ind: UncheckedIndex): int = ind.int div 8
 template byteOffset(ind: UncheckedIndex): int = ind.int mod 8
 template byteMask(ind: UncheckedIndex): byte = 1.byte shl byteOffset(ind)
 
-proc `=wasMoved`*(arr: var RefBitArray) {.inline.} =
+proc `=wasMoved`*(arr: var RefBitArray) {.inline, nodestroy.} =
   arr.impl = nil
 
 proc len*(x: RefBitArray): int {.inline.} = x.impl.length

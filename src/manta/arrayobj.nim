@@ -6,6 +6,8 @@ type
     data*: UncheckedArray[T]
 
 template uninitArrObj*[T](arr: var ref ArrayObj[T], L: int): untyped =
+  # unsafeNew zeroes memory, so this is not really "uninitialized"
+  # different story if default(T) is nonzero though
   unsafeNew(arr, sizeof(arr.length) + L * sizeof(T))
   arr.length = L
 

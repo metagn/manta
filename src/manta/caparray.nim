@@ -41,11 +41,6 @@ proc `=trace`*[T](arr: var CapArrayObj[T]; env: pointer) =
   for i in 0 ..< arr.length:
     `=trace`(arr.data[i], env)
 
-proc `=trace`*[T](arr: var CapArray[T]; env: pointer) =
-  if not arr.impl.isNil:
-    for i in 0 ..< arr.impl.length:
-      `=trace`(arr.impl.data[i], env)
-
 # basic array procs:
 
 proc len*[T](x: CapArray[T]): int {.inline.} =

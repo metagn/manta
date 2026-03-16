@@ -4,11 +4,6 @@ type Array*[T] = object
   ## array with constant runtime length and value semantics
   impl: ref ArrayObj[T]
 
-proc `=trace`*[T](arr: var Array[T]; env: pointer) =
-  if not arr.impl.isNil:
-    for i in 0 ..< arr.impl.length:
-      `=trace`(arr.impl.data[i], env)
-
 proc `=sink`*[T](dest: var Array[T], src: Array[T]) =
   `=sink`(dest.impl, src.impl)
 

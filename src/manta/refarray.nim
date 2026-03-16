@@ -4,11 +4,6 @@ type RefArray*[T] = object
   ## array with constant runtime length and reference semantics
   impl: ref ArrayObj[T]
 
-proc `=trace`*[T](arr: var RefArray[T]; env: pointer) =
-  if not arr.impl.isNil:
-    for i in 0 ..< arr.impl.length:
-      `=trace`(arr.impl.data[i], env)
-
 proc `=wasMoved`*[T](arr: var RefArray[T]) {.inline, nodestroy.} =
   arr.impl = nil
 

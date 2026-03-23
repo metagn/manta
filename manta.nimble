@@ -18,7 +18,7 @@ when (NimMajor, NimMinor) >= (1, 4):
 
 task docs, "build docs for all modules":
   when declared(buildDocs):
-    buildDocs(gitUrl = "https://github.com/metagn/manta")
+    buildDocs(gitUrl = "https://github.com/holo-nim/manta")
   else:
     echo "docs task not implemented, need nimbleutils"
 

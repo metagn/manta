@@ -4,4 +4,4 @@ Arrays with constant runtime length in Nim, with destructors to support Nim's me
 
 Depends on the [`unsafeNew`](https://nim-lang.org/docs/system.html#unsafeNew%2Cref.T%2CNatural) API from Nim to work which seems to have [existed for a long time](https://github.com/nim-lang/Nim/commit/76885c754a8f51a0ea34f76dd0843b1949ac7fde#diff-c7ae564e61082887ea50f0d58a637cb12fa78261f51aa4eface24ababfeee299) but may be unstable on the new memory management options.
 
-Warning for security critical applications: Not vetted for leaks/UB/memory access issues, ideally would be done with CI.
+Warning: Not vetted for leaks/UB/memory access issues, ideally would be done with CI.
